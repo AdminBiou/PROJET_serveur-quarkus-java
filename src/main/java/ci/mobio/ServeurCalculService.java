@@ -6,10 +6,14 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
+
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Path("/calcul")
 @ApplicationScoped
+@Transactional
 public class ServeurCalculService {
 
     @Inject
@@ -19,98 +23,100 @@ public class ServeurCalculService {
     @GET
     @Path("/add")
     @Produces(MediaType.TEXT_PLAIN)
-    @Transactional
     public String add(@QueryParam("a") double a, @QueryParam("b") double b) {
         double res = a + b;
-        saveOperation("add", "a=" + a + ", b=" + b, String.valueOf(res));
-        return String.valueOf(res);
+        String result = String.valueOf(res);
+        saveOperation("Addition", "a=" + a + ", b=" + b, result);
+        return result;
     }
 
     // === Soustraction ===
     @GET
     @Path("/sub")
     @Produces(MediaType.TEXT_PLAIN)
-    @Transactional
     public String sub(@QueryParam("a") double a, @QueryParam("b") double b) {
         double res = a - b;
-        saveOperation("sub", "a=" + a + ", b=" + b, String.valueOf(res));
-        return String.valueOf(res);
+        String result = String.valueOf(res);
+        saveOperation("Soustraction", "a=" + a + ", b=" + b, result);
+        return result;
     }
 
     // === Multiplication ===
     @GET
     @Path("/mul")
     @Produces(MediaType.TEXT_PLAIN)
-    @Transactional
     public String mul(@QueryParam("a") double a, @QueryParam("b") double b) {
         double res = a * b;
-        saveOperation("mul", "a=" + a + ", b=" + b, String.valueOf(res));
-        return String.valueOf(res);
+        String result = String.valueOf(res);
+        saveOperation("Multiplication", "a=" + a + ", b=" + b, result);
+        return result;
     }
 
     // === Division ===
     @GET
     @Path("/div")
     @Produces(MediaType.TEXT_PLAIN)
-    @Transactional
     public String div(@QueryParam("a") double a, @QueryParam("b") double b) {
         if (b == 0) {
             throw new WebApplicationException("Division par zéro interdite", 400);
         }
         double res = a / b;
-        saveOperation("div", "a=" + a + ", b=" + b, String.valueOf(res));
-        return String.valueOf(res);
-    }
-
-    // === Equation du 1er degré : ax + b = 0 ===
-    @GET
-    @Path("/eq1")
-    @Produces(MediaType.TEXT_PLAIN)
-    @Transactional
-    public String eq1(@QueryParam("a") double a, @QueryParam("b") double b) {
-        String result;
-        if (a == 0) {
-            result = (b == 0) ? "Infinité de solutions" : "Pas de solution";
-        } else {
-            result = String.valueOf(-b / a);
-        }
-        saveOperation("eq1", "a=" + a + ", b=" + b, result);
-        return "x = " + (-b / a);
-    }
-
-    // === Equation du 2ème degré : ax² + bx + c = 0 ===
-    @GET
-    @Path("/eq2")
-    @Produces(MediaType.TEXT_PLAIN)
-    @Transactional
-    public String eq2(@QueryParam("a") double a, @QueryParam("b") double b, @QueryParam("c") double c) {
-        String result;
-        double delta = b * b - 4 * a * c;
-
-        if (a == 0) {
-            result = "Pas une équation du 2e degré";
-        } else if (delta < 0) {
-            result = "Pas de solution réelle";
-        } else if (delta == 0) {
-            result = "x = " + (-b / (2 * a));
-        } else {
-            double x1 = (-b - Math.sqrt(delta)) / (2 * a);
-            double x2 = (-b + Math.sqrt(delta)) / (2 * a);
-            result = "x1 = " + x1 + ", x2 = " + x2;
-        }
-
-        saveOperation("eq2", "a=" + a + ", b=" + b + ", c=" + c, result);
+        String result = String.valueOf(res);
+        saveOperation("Division", "a=" + a + ", b=" + b, result);
         return result;
     }
 
-// === Historique des opérations ===
-    @GET
+    // === Equation du 1er degré ===
+@GET
+@Path("/eq1")
+@Produces(MediaType.TEXT_PLAIN)
+public String eq1(@QueryParam("a") double a, @QueryParam("b") double b) {
+    String result;
+    if (a == 0) {
+        result = (b == 0) ? "Infinité de solutions" : "Pas de solution";
+    } else {
+        result = "X = " + (-b / a);
+    }
+    saveOperation("Equation du 1er degré", "a=" + a + ", b=" + b, result);
+    return result;
+}
+
+// === Equation du 2ème degré ===
+@GET
+@Path("/eq2")
+@Produces(MediaType.TEXT_PLAIN)
+public String eq2(@QueryParam("a") double a, @QueryParam("b") double b, @QueryParam("c") double c) {
+    String result;
+    double delta = b * b - 4 * a * c;
+
+    if (a == 0) {
+        result = "Pas une équation du 2e degré";
+    } else if (delta < 0) {
+        result = "Pas de solution réelle";
+    } else if (delta == 0) {
+        result = "X = " + (-b / (2 * a));
+    } else {
+        double x1 = (-b - Math.sqrt(delta)) / (2 * a);
+        double x2 = (-b + Math.sqrt(delta)) / (2 * a);
+        result = "X1 = " + x1 + "; X2 = " + x2;
+    }
+
+    saveOperation("Equation du 2ème degré", "a=" + a + ", b=" + b + ", c=" + c, result);
+    return result;
+}
+
+    // === Historique des opérations ===
+@GET
 @Path("/history")
-@Produces(MediaType.APPLICATION_JSON)
-public List<Operation> history() {
-    return em.createQuery(
-            "SELECT o FROM Operation o ORDER BY o.createdAt DESC", Operation.class)
-            .getResultList();
+@Produces(MediaType.TEXT_PLAIN)
+public String history() {
+    List<Operation> ops = em.createQuery("SELECT o FROM Operation o ORDER BY o.createdAt DESC", Operation.class)
+                            .getResultList();
+
+    return ops.stream()
+              .map(o -> o.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd -- HH:mm:ss")) 
+                        + " - " + o.getType() + " : " + o.getInput() + " = " + o.getResult())
+              .collect(Collectors.joining("\n"));
 }
 
 

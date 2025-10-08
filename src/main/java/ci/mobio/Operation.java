@@ -2,6 +2,7 @@ package ci.mobio;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 /*
  * Classe représentant une opération mathématique
@@ -39,4 +40,12 @@ public class Operation {
     public void setResult(String result) { this.result = result; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
+
+    // === Méthode utilitaire pour retourner l'heure dans un format lisible ===
+    @Transient // ne sera pas persistée en base
+    public String getFormattedCreatedAt() {
+        if (createdAt == null) return "";
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd -- HH:mm:ss");
+        return createdAt.format(formatter);
+    }
 }
